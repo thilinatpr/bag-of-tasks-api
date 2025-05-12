@@ -13,7 +13,22 @@ const supabase = createClient(
 );
 
 // Middleware
-app.use(cors());
+//app.use(cors());
+const corsOptions = {
+  origin: [
+    'http://localhost:3000', // Default Vite port
+    'http://127.0.0.1:3000',
+    'http://localhost:5173', // Common Vite alternative port
+    'http://127.0.0.1:5173',
+    // Add any other domains you need in development
+  ],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
+};
+
+app.use(cors(corsOptions));
+
 app.use(express.json());
 
 // Health check
