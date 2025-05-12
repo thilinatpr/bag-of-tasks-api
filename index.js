@@ -1,6 +1,6 @@
 const express = require('express');
 const cors = require('cors');
-const { createClient } = require('@supabase/supabase-js');
+const { createClient, AuthApiError } = require('@supabase/supabase-js');
 require('dotenv').config();
 
 const app = express();
@@ -13,7 +13,7 @@ const supabase = createClient(
 );
 
 // Middleware
-const corsOptions = {
+/*const corsOptions = {
   origin: [
     'http://localhost:3000',
     'http://127.0.0.1:3000',
@@ -23,9 +23,10 @@ const corsOptions = {
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true
-};
+};*/
 
-app.use(cors(corsOptions));
+//app.use(cors(corsOptions));
+app.use(cors());
 app.use(express.json());
 
 // Health check
