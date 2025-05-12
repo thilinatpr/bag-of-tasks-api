@@ -13,14 +13,12 @@ const supabase = createClient(
 );
 
 // Middleware
-//app.use(cors());
 const corsOptions = {
   origin: [
-    'http://localhost:3000', // Default Vite port
+    'http://localhost:3000',
     'http://127.0.0.1:3000',
-    'http://localhost:5173', // Common Vite alternative port
+    'http://localhost:5173',
     'http://127.0.0.1:5173',
-    // Add any other domains you need in development
   ],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
@@ -28,7 +26,6 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
-
 app.use(express.json());
 
 // Health check
@@ -40,7 +37,7 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Get all tasks
+// Get all tasks - now returns duration in seconds
 app.get('/api/tasks', async (req, res) => {
   try {
     const { data, error } = await supabase
@@ -56,18 +53,25 @@ app.get('/api/tasks', async (req, res) => {
   }
 });
 
-// Add new task
+// Add new task - converts minutes to seconds
 app.post('/api/tasks', async (req, res) => {
   try {
     const { title, duration, tags = ['general'] } = req.body;
     
-    if (!title || !duration) {
+    if (!title || duration === undefined) {
       return res.status(400).json({ error: 'Title and duration are required' });
     }
 
+    // Convert decimal minutes to seconds
+    const durationInSeconds = Math.round(parseFloat(duration) * 60);
+
     const { data, error } = await supabase
       .from('tasks')
-      .insert([{ title, duration, tags }])
+      .insert([{ 
+        title, 
+        duration: durationInSeconds, // Store as seconds
+        tags 
+      }])
       .select()
       .single();
 
@@ -79,13 +83,12 @@ app.post('/api/tasks', async (req, res) => {
   }
 });
 
-// Complete task
+// Complete task - no changes needed
 app.post('/api/tasks/complete', async (req, res) => {
   try {
     const { taskId } = req.body;
     if (!taskId) return res.status(400).json({ error: 'Task ID required' });
 
-    // Verify task exists
     const { data: task, error: taskError } = await supabase
       .from('tasks')
       .select('*')
@@ -96,7 +99,6 @@ app.post('/api/tasks/complete', async (req, res) => {
       return res.status(404).json({ error: 'Task not found' });
     }
 
-    // Increment stats and delete task in transaction
     const { data: stats } = await supabase
       .from('stats')
       .update({ completed_tasks: supabase.rpc('increment', { x: 1 }) })
@@ -121,7 +123,7 @@ app.post('/api/tasks/complete', async (req, res) => {
   }
 });
 
-// Get stats
+// Get stats - no changes needed
 app.get('/api/tasks/stats', async (req, res) => {
   try {
     const { data, error } = await supabase
