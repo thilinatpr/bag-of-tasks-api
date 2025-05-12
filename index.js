@@ -37,7 +37,7 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Get all tasks - now returns duration in seconds
+// Get all tasks
 app.get('/api/tasks', async (req, res) => {
   try {
     const { data, error } = await supabase
@@ -53,7 +53,7 @@ app.get('/api/tasks', async (req, res) => {
   }
 });
 
-// Add new task - converts minutes to seconds
+// Add new task
 app.post('/api/tasks', async (req, res) => {
   try {
     const { title, duration, tags = ['general'] } = req.body;
@@ -69,7 +69,7 @@ app.post('/api/tasks', async (req, res) => {
       .from('tasks')
       .insert([{ 
         title, 
-        duration: durationInSeconds, // Store as seconds
+        duration: durationInSeconds,
         tags 
       }])
       .select()
@@ -83,12 +83,13 @@ app.post('/api/tasks', async (req, res) => {
   }
 });
 
-// Complete task - no changes needed
+// Complete task - FIXED VERSION
 app.post('/api/tasks/complete', async (req, res) => {
   try {
     const { taskId } = req.body;
     if (!taskId) return res.status(400).json({ error: 'Task ID required' });
 
+    // 1. First verify the task exists
     const { data: task, error: taskError } = await supabase
       .from('tasks')
       .select('*')
@@ -99,13 +100,18 @@ app.post('/api/tasks/complete', async (req, res) => {
       return res.status(404).json({ error: 'Task not found' });
     }
 
-    const { data: stats } = await supabase
+    // 2. Get current stats count
+    const { data: currentStats, error: statsError } = await supabase
       .from('stats')
-      .update({ completed_tasks: supabase.rpc('increment', { x: 1 }) })
+      .select('completed_tasks')
       .eq('id', 'default')
-      .select()
       .single();
 
+    if (statsError || !currentStats) {
+      throw statsError || new Error('Could not fetch current stats');
+    }
+
+    // 3. Delete the task
     const { error: deleteError } = await supabase
       .from('tasks')
       .delete()
@@ -113,17 +119,32 @@ app.post('/api/tasks/complete', async (req, res) => {
 
     if (deleteError) throw deleteError;
 
+    // 4. Update stats with new count
+    const newCount = (currentStats.completed_tasks || 0) + 1;
+    const { data: updatedStats, error: updateError } = await supabase
+      .from('stats')
+      .update({ completed_tasks: newCount })
+      .eq('id', 'default')
+      .select()
+      .single();
+
+    if (updateError) throw updateError;
+
     res.status(200).json({ 
-      completedTasks: stats.completed_tasks,
+      completedTasks: newCount,
       task: task
     });
+
   } catch (error) {
     console.error('POST /complete error:', error);
-    res.status(500).json({ error: 'Failed to complete task' });
+    res.status(500).json({ 
+      error: 'Failed to complete task',
+      details: error.message 
+    });
   }
 });
 
-// Get stats - no changes needed
+// Get stats
 app.get('/api/tasks/stats', async (req, res) => {
   try {
     const { data, error } = await supabase
